@@ -2,80 +2,98 @@ const BASE_URL = "http://localhost:3000";
 const TRAINERS_URL = `${BASE_URL}/trainers`;
 const POKEMONS_URL = `${BASE_URL}/pokemons`;
 
-document.addEventListener("DOMContentLoaded", (e) => {
-  const main = document.querySelector("main");
+const ce = (tag) => document.createElement(tag)
+const qc = (selector) => document.querySelector(selector)
+const main = qc('main')
 
+const getTrainers = () => {
   fetch(TRAINERS_URL)
     .then((res) => res.json())
-    .then((trainers) => {
-      trainers.forEach((trainer) => {
-        const trainerCard = document.createElement("div");
-        trainerCard.className = "card";
-        // trainerCard.set.attribute("data-id", trainer.id)
-        trainerCard.dataset.id = trainer.id;
-        trainerCard.innerHTML = `<p>${trainer.name}</p>`;
-        main.append(trainerCard);
-        const addPokemonButton = document.createElement("button");
-        addPokemonButton.className = "add-pokemon";
-        // addPokemonButton.set.attribute("data-trainer-id", trainer.id)
-        addPokemonButton.dataset.trainerId = trainer.id;
-        addPokemonButton.innerText = "Add Pokemon";
-        trainerCard.append(addPokemonButton);
-        const ul = document.createElement("ul");
-        ul.dataset.id = trainer.id;
-        trainerCard.append(ul);
-        trainer.pokemons.forEach((pokemon) => {
-          addPokemon(trainer, pokemon);
-        });
-      });
-    });
+    .then((trainers) => { trainers.forEach(addTrainerOnDom) })
+}
 
-  const addPokemon = (trainer, pokemon) => {
-    const li = document.createElement("li");
-    li.innerHTML = `${pokemon.nickname} (${pokemon.species})`;
-    const divCard = document.querySelector(`[data-id = "${trainer.id}"]`);
-    const ul = divCard.children[2];
-    ul.append(li);
-    const releasePokemonButton = document.createElement("button");
-    releasePokemonButton.className = "release";
-    releasePokemonButton.dataset.pokemonId = pokemon.id;
-    releasePokemonButton.innerText = "Release";
-    li.append(releasePokemonButton);
-  };
+const addTrainerOnDom = ({ id, name, pokemons }) => {
+  const trainerCard = ce('div')
+  main.append(trainerCard)
+  trainerCard.className = "card";
+  trainerCard.dataset.id = id;
 
-  const clickHandler = () => {
-    document.addEventListener(`click`, (e) => {
-      if (e.target.matches(".add-pokemon")) {
-        // console.log(e.target.dataset.trainerId);
-        fetch(POKEMONS_URL)
-          .then((res) => res.json())
-          .then((pokemons) => {
-            const filteredPokemon = pokemons.filter(
-              (pokemon) =>
-                pokemon.trainer_id === parseInt(e.target.dataset.trainerId)
-            );
-            // console.log(filteredPokemon);
+  const p = ce('p')
+  trainerCard.append(p)
+  p.textContent = name
 
-            const object = {
-              datatype: "pokemons",
-              value: {
-                nickname: filteredPokemon[0].nickname,
-                species: filteredPokemon[0].species,
-                id: filteredPokemon[0].id,
-              },
-            };
-            const options = {
-              method: "POST",
-              headers: {
-                "Content-Type": `application/json`,
-                Accept: "application/json",
-              },
-              body: JSON.stringify(object),
-            };
-            fetch(TRAINERS_URL, options);
-          });
-      }
-    });
-  };
-  clickHandler();
-});
+  const addPokemonButton = ce('button')
+  trainerCard.append(addPokemonButton)
+  addPokemonButton.className = 'add-pokemon'
+  addPokemonButton.dataset.trainerId = id
+  addPokemonButton.textContent = 'Add Pokemon'
+
+  const ul = ce('ul')
+  trainerCard.append(ul)
+  ul.dataset.id = id
+
+  pokemons.forEach((pokemon) => { addPokemon(ul, pokemon) })
+}
+  
+const addPokemon = (ul, pokemon) => {
+  const li = ce('li')
+  ul.append(li)
+  li.textContent = `${pokemon.nickname} (${pokemon.species})`
+
+  const releasePokemonButton = ce('button')
+  li.append(releasePokemonButton)
+  releasePokemonButton.className = 'release'
+  releasePokemonButton.dataset.pokemonId = pokemon.id
+  releasePokemonButton.textContent = 'Release'
+}
+
+const clickHandler = () => {
+  document.addEventListener('click', e => {
+    const btnClass = e.target.className
+    switch (btnClass) {
+      case 'add-pokemon':
+        fetchPokemon(e.target)
+        break
+      case 'release':
+        deletePokemon(e.target)
+        break
+      default: 
+        break
+    }
+  })
+}
+
+const fetchPokemon = (target) => {
+  const ul = target.nextElementSibling
+  const trainer_id = target.dataset.trainerId
+  const options = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify( { trainer_id })
+  }
+
+  fetch(POKEMONS_URL, options)
+  .then(res => res.json())
+  // .then(res => {
+    // res.json()
+    // if (res.status !== 201) {
+    //   console.log(res)
+    // }
+  // })
+  .then(pokemon => addPokemon(ul, pokemon))
+}
+
+const deletePokemon = (target) => {
+  const options = {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' }
+  }
+  fetch(POKEMONS_URL + '/' + target.dataset.pokemonId, options)
+  .then(res => res.json())
+  .then(pokemon => {
+    target.parentElement.remove()
+  })
+}
+
+getTrainers()
+clickHandler()
